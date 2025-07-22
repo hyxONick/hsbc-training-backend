@@ -1,3 +1,5 @@
+### Run the db_create.sql to init the db.
+
 ```base
   npm install  
 ```
