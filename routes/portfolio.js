@@ -6,7 +6,73 @@ const { requireAuth, adminOnly } = require('../middleware/auth');
 
 const router = new Router({ prefix: '/api/portfolios' });
 
-// GET: 获取所有未删除的投资组合
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Portfolio:
+ *       type: object
+ *       required:
+ *         - userId
+ *         - name
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 投资组合ID
+ *         userId:
+ *           type: integer
+ *           description: 用户ID
+ *         name:
+ *           type: string
+ *           maxLength: 100
+ *           description: 投资组合名称
+ *         isDeleted:
+ *           type: boolean
+ *           default: false
+ *           description: 是否删除
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: 创建时间
+ *         PortfolioItems:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/PortfolioItem'
+ *           description: 投资组合项目
+ *     PortfolioCreate:
+ *       type: object
+ *       required:
+ *         - userId
+ *         - name
+ *       properties:
+ *         userId:
+ *           type: integer
+ *         name:
+ *           type: string
+ *           maxLength: 100
+ * 
+ * tags:
+ *   - name: Portfolio
+ *     description: 投资组合管理
+ */
+
+/**
+ * @swagger
+ * /api/portfolios:
+ *   get:
+ *     tags: [Portfolio]
+ *     summary: 获取所有投资组合
+ *     description: 获取所有未删除的投资组合及其项目
+ *     responses:
+ *       200:
+ *         description: 成功获取投资组合列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Portfolio'
+ */
 router.get('/', async (ctx) => {
   const portfolios = await Portfolio.findAll({
     where: { isDeleted: false },
@@ -51,7 +117,30 @@ router.get('/user/:userId', async (ctx) => {
   ctx.body = portfolios;
 });
 
-// POST: 创建投资组合
+/**
+ * @swagger
+ * /api/portfolios/create:
+ *   post:
+ *     tags: [Portfolio]
+ *     summary: 创建投资组合
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PortfolioCreate'
+ *     responses:
+ *       200:
+ *         description: 成功创建投资组合
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Portfolio'
+ *       401:
+ *         description: 未授权
+ */
 router.post('/create', requireAuth, async (ctx) => {
   const newPortfolio = await Portfolio.create(ctx.request.body);
   ctx.body = newPortfolio;

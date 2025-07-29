@@ -6,7 +6,76 @@ const { requireAuth, adminOnly } = require('../middleware/auth');
 
 const router = new Router({ prefix: '/api/profit-logs' });
 
-// GET: 获取所有未删除的收益记录
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ProfitLog:
+ *       type: object
+ *       required:
+ *         - itemId
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 收益记录ID
+ *         itemId:
+ *           type: integer
+ *           description: 投资组合项目ID
+ *         date:
+ *           type: string
+ *           format: date-time
+ *           description: 记录日期
+ *         value:
+ *           type: number
+ *           format: decimal
+ *           description: 当前价值
+ *         profit:
+ *           type: number
+ *           format: decimal
+ *           description: 收益金额
+ *         isDeleted:
+ *           type: boolean
+ *           default: false
+ *           description: 是否删除
+ *     ProfitLogCreate:
+ *       type: object
+ *       required:
+ *         - itemId
+ *       properties:
+ *         itemId:
+ *           type: integer
+ *         date:
+ *           type: string
+ *           format: date-time
+ *         value:
+ *           type: number
+ *           format: decimal
+ *         profit:
+ *           type: number
+ *           format: decimal
+ * 
+ * tags:
+ *   - name: ProfitLog
+ *     description: 收益记录管理
+ */
+
+/**
+ * @swagger
+ * /api/profit-logs:
+ *   get:
+ *     tags: [ProfitLog]
+ *     summary: 获取所有收益记录
+ *     description: 获取所有未删除的收益记录，按日期倒序排列
+ *     responses:
+ *       200:
+ *         description: 成功获取收益记录列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ProfitLog'
+ */
 router.get('/', async (ctx) => {
   const logs = await ProfitLog.findAll({
     where: { isDeleted: false },
@@ -36,7 +105,30 @@ router.get('/item/:itemId', async (ctx) => {
   ctx.body = logs;
 });
 
-// POST: 创建收益记录
+/**
+ * @swagger
+ * /api/profit-logs/create:
+ *   post:
+ *     tags: [ProfitLog]
+ *     summary: 创建收益记录
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ProfitLogCreate'
+ *     responses:
+ *       200:
+ *         description: 成功创建收益记录
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ProfitLog'
+ *       401:
+ *         description: 未授权
+ */
 router.post('/create', requireAuth, async (ctx) => {
   const newLog = await ProfitLog.create(ctx.request.body);
   ctx.body = newLog;
