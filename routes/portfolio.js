@@ -94,7 +94,29 @@ router.get('/', async (ctx) => {
   ctx.body = portfolios;
 });
 
-// GET: 根据 ID 获取投资组合
+/**
+ * @swagger
+ * /api/portfolios/{id}:
+ *   get:
+ *     summary: 根据ID获取投资组合
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 投资组合ID
+ *     responses:
+ *       200:
+ *         description: 获取投资组合成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Portfolio'
+ *       404:
+ *         description: 投资组合不存在
+ */
 router.get('/:id', async (ctx) => {
   const portfolio = await Portfolio.findByPk(ctx.params.id, {
     include: [{
@@ -109,7 +131,29 @@ router.get('/:id', async (ctx) => {
   ctx.body = portfolio;
 });
 
-// GET: 根据用户ID获取用户的所有投资组合
+/**
+ * @swagger
+ * /api/portfolios/user/{userId}:
+ *   get:
+ *     summary: 根据用户ID获取用户的所有投资组合
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 获取用户投资组合列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Portfolio'
+ */
 router.get('/user/:userId', async (ctx) => {
   const portfolios = await Portfolio.findAll({
     where: { 

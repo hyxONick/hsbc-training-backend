@@ -6,7 +6,73 @@ const { requireAuth, adminOnly } = require('../middleware/auth');
 
 const router = new Router({ prefix: '/api/profit-logs' });
 
-// GET: 获取所有未删除的收益记录
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ProfitLog:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 收益记录ID
+ *         itemId:
+ *           type: integer
+ *           description: 投资项目ID
+ *         date:
+ *           type: string
+ *           format: date-time
+ *           description: 记录日期
+ *         value:
+ *           type: number
+ *           format: decimal
+ *           description: 价值
+ *         profit:
+ *           type: number
+ *           format: decimal
+ *           description: 收益
+ *         isDeleted:
+ *           type: boolean
+ *           default: false
+ *           description: 是否已删除
+ *     ProfitLogCreate:
+ *       type: object
+ *       required:
+ *         - itemId
+ *       properties:
+ *         itemId:
+ *           type: integer
+ *           description: 投资项目ID
+ *         date:
+ *           type: string
+ *           format: date-time
+ *           description: 记录日期
+ *         value:
+ *           type: number
+ *           format: decimal
+ *           description: 价值
+ *         profit:
+ *           type: number
+ *           format: decimal
+ *           description: 收益
+ */
+
+/**
+ * @swagger
+ * /api/profit-logs:
+ *   get:
+ *     summary: 获取所有未删除的收益记录
+ *     tags: [Profit Logs]
+ *     responses:
+ *       200:
+ *         description: 获取收益记录列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ProfitLog'
+ */
 router.get('/', async (ctx) => {
   const logs = await ProfitLog.findAll({
     where: { isDeleted: false },
@@ -15,7 +81,29 @@ router.get('/', async (ctx) => {
   ctx.body = logs;
 });
 
-// GET: 根据 ID 获取收益记录
+/**
+ * @swagger
+ * /api/profit-logs/{id}:
+ *   get:
+ *     summary: 根据ID获取收益记录
+ *     tags: [Profit Logs]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 收益记录ID
+ *     responses:
+ *       200:
+ *         description: 获取收益记录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ProfitLog'
+ *       404:
+ *         description: 收益记录不存在
+ */
 router.get('/:id', async (ctx) => {
   const log = await ProfitLog.findByPk(ctx.params.id);
   if (!log) {
@@ -36,7 +124,30 @@ router.get('/item/:itemId', async (ctx) => {
   ctx.body = logs;
 });
 
-// POST: 创建收益记录
+/**
+ * @swagger
+ * /api/profit-logs/create:
+ *   post:
+ *     summary: 创建收益记录
+ *     tags: [Profit Logs]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ProfitLogCreate'
+ *     responses:
+ *       200:
+ *         description: 创建收益记录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ProfitLog'
+ *       401:
+ *         description: 未认证
+ */
 router.post('/create', requireAuth, async (ctx) => {
   const newLog = await ProfitLog.create(ctx.request.body);
   ctx.body = newLog;

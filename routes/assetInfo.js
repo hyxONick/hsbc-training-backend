@@ -5,7 +5,109 @@ const { requireAuth, adminOnly } = require('../middleware/auth');
 
 const router = new Router({ prefix: '/api/assets' });
 
-// GET: 获取所有未删除的资产信息
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     AssetInfo:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 资产ID
+ *         assetCode:
+ *           type: string
+ *           maxLength: 20
+ *           description: 资产代码
+ *         name:
+ *           type: string
+ *           maxLength: 100
+ *           description: 资产名称
+ *         assetType:
+ *           type: string
+ *           enum: [stock, bond]
+ *           description: 资产类型
+ *         price:
+ *           type: number
+ *           format: decimal
+ *           description: 当前价格
+ *         currency:
+ *           type: string
+ *           maxLength: 10
+ *           description: 货币单位
+ *         historyPriceArt:
+ *           type: array
+ *           items:
+ *             type: number
+ *           description: 历史价格数组
+ *         dateArr:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: 历史日期数组
+ *         isDeleted:
+ *           type: boolean
+ *           default: false
+ *           description: 是否已删除
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: 更新时间
+ *     AssetInfoCreate:
+ *       type: object
+ *       required:
+ *         - assetCode
+ *         - assetType
+ *         - price
+ *       properties:
+ *         assetCode:
+ *           type: string
+ *           maxLength: 20
+ *           description: 资产代码
+ *         name:
+ *           type: string
+ *           maxLength: 100
+ *           description: 资产名称
+ *         assetType:
+ *           type: string
+ *           enum: [stock, bond]
+ *           description: 资产类型
+ *         price:
+ *           type: number
+ *           format: decimal
+ *           description: 当前价格
+ *         currency:
+ *           type: string
+ *           maxLength: 10
+ *           description: 货币单位
+ *         historyPriceArt:
+ *           type: array
+ *           items:
+ *             type: number
+ *           description: 历史价格数组
+ *         dateArr:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: 历史日期数组
+ */
+
+/**
+ * @swagger
+ * /api/assets:
+ *   get:
+ *     summary: 获取所有未删除的资产信息
+ *     tags: [Assets]
+ *     responses:
+ *       200:
+ *         description: 获取资产列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/AssetInfo'
+ */
 router.get('/', async (ctx) => {
   const assets = await AssetInfo.findAll({
     where: { isDeleted: false }
@@ -13,7 +115,29 @@ router.get('/', async (ctx) => {
   ctx.body = assets;
 });
 
-// GET: 根据 ID 获取资产信息
+/**
+ * @swagger
+ * /api/assets/{id}:
+ *   get:
+ *     summary: 根据ID获取资产信息
+ *     tags: [Assets]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 资产ID
+ *     responses:
+ *       200:
+ *         description: 获取资产信息成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AssetInfo'
+ *       404:
+ *         description: 资产不存在
+ */
 router.get('/:id', async (ctx) => {
   const asset = await AssetInfo.findByPk(ctx.params.id);
   if (!asset) {
@@ -22,7 +146,29 @@ router.get('/:id', async (ctx) => {
   ctx.body = asset;
 });
 
-// GET: 根据资产代码获取资产信息
+/**
+ * @swagger
+ * /api/assets/code/{assetCode}:
+ *   get:
+ *     summary: 根据资产代码获取资产信息
+ *     tags: [Assets]
+ *     parameters:
+ *       - in: path
+ *         name: assetCode
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 资产代码
+ *     responses:
+ *       200:
+ *         description: 获取资产信息成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AssetInfo'
+ *       404:
+ *         description: 资产不存在
+ */
 router.get('/code/:assetCode', async (ctx) => {
   const asset = await AssetInfo.findOne({
     where: { 
@@ -36,7 +182,32 @@ router.get('/code/:assetCode', async (ctx) => {
   ctx.body = asset;
 });
 
-// POST: 创建资产信息
+/**
+ * @swagger
+ * /api/assets/create:
+ *   post:
+ *     summary: 创建资产信息
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AssetInfoCreate'
+ *     responses:
+ *       200:
+ *         description: 创建资产成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AssetInfo'
+ *       401:
+ *         description: 未认证
+ *       403:
+ *         description: 需要管理员权限
+ */
 router.post('/create', requireAuth, adminOnly, async (ctx) => {
   const newAsset = await AssetInfo.create(ctx.request.body);
   ctx.body = newAsset;
