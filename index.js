@@ -23,6 +23,10 @@ PortfolioItem.belongsTo(Portfolio, { foreignKey: 'portfolioId' });
 
 const clothRoutes = require('./routes/cloth');
 const userRoutes = require('./routes/user');
+const assetInfoRoutes = require('./routes/assetInfo');
+const portfolioRoutes = require('./routes/portfolio');
+const portfolioItemRoutes = require('./routes/portfolioItem');
+const profitLogRoutes = require('./routes/profitLog');
 
 const app = new Koa();
 app.use(cors());
@@ -81,6 +85,10 @@ app.use(
 // ✅ 路由挂载
 app.use(clothRoutes.routes()).use(clothRoutes.allowedMethods());
 app.use(userRoutes.routes()).use(userRoutes.allowedMethods());
+app.use(assetInfoRoutes.routes()).use(assetInfoRoutes.allowedMethods());
+app.use(portfolioRoutes.routes()).use(portfolioRoutes.allowedMethods());
+app.use(portfolioItemRoutes.routes()).use(portfolioItemRoutes.allowedMethods());
+app.use(profitLogRoutes.routes()).use(profitLogRoutes.allowedMethods());
 
 // ✅ 启动服务
 const PORT = process.env.PORT || 3000;
