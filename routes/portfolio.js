@@ -2,11 +2,27 @@ const Router = require('koa-router');
 const Portfolio = require('../models/Portfolio');
 const PortfolioItem = require('../models/PortfolioItem');
 const { Op } = require('sequelize');
-const { requireAuth, adminOnly } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
 const router = new Router({ prefix: '/api/portfolios' });
 
-// GET: 获取所有未删除的投资组合
+/**
+ * @swagger
+ * tags:
+ *   name: Portfolios
+ *   description: 投资组合管理接口
+ */
+
+/**
+ * @swagger
+ * /api/portfolios:
+ *   get:
+ *     summary: 获取所有未删除的投资组合（含资产）
+ *     tags: [Portfolios]
+ *     responses:
+ *       200:
+ *         description: 成功返回投资组合数组
+ */
 router.get('/', async (ctx) => {
   const portfolios = await Portfolio.findAll({
     where: { isDeleted: false },
@@ -19,7 +35,25 @@ router.get('/', async (ctx) => {
   ctx.body = portfolios;
 });
 
-// GET: 根据 ID 获取投资组合
+/**
+ * @swagger
+ * /api/portfolios/{id}:
+ *   get:
+ *     summary: 根据 ID 获取投资组合（含资产）
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 投资组合ID
+ *     responses:
+ *       200:
+ *         description: 成功返回投资组合
+ *       404:
+ *         description: 未找到投资组合
+ */
 router.get('/:id', async (ctx) => {
   const portfolio = await Portfolio.findByPk(ctx.params.id, {
     include: [{
@@ -28,19 +62,30 @@ router.get('/:id', async (ctx) => {
       required: false
     }]
   });
-  if (!portfolio) {
-    ctx.throw(404, 'Portfolio not found');
-  }
+  if (!portfolio) ctx.throw(404, 'Portfolio not found');
   ctx.body = portfolio;
 });
 
-// GET: 根据用户ID获取用户的所有投资组合
+/**
+ * @swagger
+ * /api/portfolios/user/{userId}:
+ *   get:
+ *     summary: 根据用户ID获取该用户所有投资组合
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - name: userId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 返回用户的投资组合列表
+ */
 router.get('/user/:userId', async (ctx) => {
   const portfolios = await Portfolio.findAll({
-    where: { 
-      userId: ctx.params.userId,
-      isDeleted: false 
-    },
+    where: { userId: ctx.params.userId, isDeleted: false },
     include: [{
       model: PortfolioItem,
       where: { isDeleted: false },
@@ -51,24 +96,71 @@ router.get('/user/:userId', async (ctx) => {
   ctx.body = portfolios;
 });
 
-// POST: 创建投资组合
+/**
+ * @swagger
+ * /api/portfolios/create:
+ *   post:
+ *     summary: 创建投资组合（需登录）
+ *     tags: [Portfolios]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *                 example: 1
+ *               name:
+ *                 type: string
+ *                 example: 我的退休投资组合
+ *     responses:
+ *       200:
+ *         description: 成功返回创建的投资组合
+ */
 router.post('/create', requireAuth, async (ctx) => {
   const newPortfolio = await Portfolio.create(ctx.request.body);
   ctx.body = newPortfolio;
 });
 
-// POST: 修改投资组合
+/**
+ * @swagger
+ * /api/portfolios/update/{id}:
+ *   post:
+ *     summary: 修改投资组合（需登录）
+ *     tags: [Portfolios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 投资组合ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             example:
+ *               name: "更新后的投资组合名称"
+ *     responses:
+ *       200:
+ *         description: 返回更新后的投资组合
+ *       404:
+ *         description: 未找到投资组合
+ */
 router.post('/update/:id', requireAuth, async (ctx) => {
-  const [updatedRowsCount] = await Portfolio.update(
-    ctx.request.body,
-    {
-      where: { id: ctx.params.id }
-    }
-  );
+  const [updatedRowsCount] = await Portfolio.update(ctx.request.body, {
+    where: { id: ctx.params.id }
+  });
 
-  if (updatedRowsCount === 0) {
-    ctx.throw(404, 'Portfolio not found');
-  }
+  if (updatedRowsCount === 0) ctx.throw(404, 'Portfolio not found');
 
   const updatedPortfolio = await Portfolio.findByPk(ctx.params.id, {
     include: [{
@@ -80,16 +172,34 @@ router.post('/update/:id', requireAuth, async (ctx) => {
   ctx.body = updatedPortfolio;
 });
 
-// POST: 逻辑删除投资组合
+/**
+ * @swagger
+ * /api/portfolios/delete/{id}:
+ *   post:
+ *     summary: 逻辑删除投资组合（需登录）
+ *     tags: [Portfolios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 投资组合ID
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ *       404:
+ *         description: 未找到投资组合
+ */
 router.post('/delete/:id', requireAuth, async (ctx) => {
   const [updatedRowsCount] = await Portfolio.update(
     { isDeleted: true },
     { where: { id: ctx.params.id } }
   );
 
-  if (updatedRowsCount === 0) {
-    ctx.throw(404, 'Portfolio not found');
-  }
+  if (updatedRowsCount === 0) ctx.throw(404, 'Portfolio not found');
 
   const deletedPortfolio = await Portfolio.findByPk(ctx.params.id);
   ctx.body = {
@@ -98,17 +208,37 @@ router.post('/delete/:id', requireAuth, async (ctx) => {
   };
 });
 
-// GET: 分页 + 条件过滤搜索
+/**
+ * @swagger
+ * /api/portfolios/search:
+ *   get:
+ *     summary: 分页 + 条件搜索投资组合
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         schema: { type: integer }
+ *         description: 页码
+ *       - name: pageSize
+ *         in: query
+ *         schema: { type: integer }
+ *         description: 每页数量
+ *       - name: userId
+ *         in: query
+ *         schema: { type: integer }
+ *         description: 按用户ID筛选
+ *       - name: name
+ *         in: query
+ *         schema: { type: string }
+ *         description: 模糊搜索组合名称
+ *     responses:
+ *       200:
+ *         description: 返回分页后的投资组合列表
+ */
 router.get('/search', async (ctx) => {
-  const { 
-    page = 1, 
-    pageSize = 10, 
-    userId,
-    name
-  } = ctx.query;
+  const { page = 1, pageSize = 10, userId, name } = ctx.query;
 
   const filter = { isDeleted: false };
-  
   if (userId) filter.userId = userId;
   if (name) filter.name = { [Op.like]: `%${name}%` };
 
@@ -127,28 +257,35 @@ router.get('/search', async (ctx) => {
     order: [['createdAt', 'DESC']]
   });
 
-  ctx.body = {
-    total,
-    page: parseInt(page),
-    pageSize: parseInt(pageSize),
-    items
-  };
+  ctx.body = { total, page: parseInt(page), pageSize: parseInt(pageSize), items };
 });
 
-// GET: 获取投资组合统计信息
+/**
+ * @swagger
+ * /api/portfolios/{id}/stats:
+ *   get:
+ *     summary: 获取投资组合统计信息（资产数量、买卖统计）
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: integer }
+ *         description: 投资组合ID
+ *     responses:
+ *       200:
+ *         description: 返回统计信息（totalItems, totalAmount, buyCount, sellCount, assetTypes）
+ *       404:
+ *         description: 未找到投资组合
+ */
 router.get('/:id/stats', async (ctx) => {
   const portfolioId = ctx.params.id;
   
   const portfolio = await Portfolio.findByPk(portfolioId);
-  if (!portfolio) {
-    ctx.throw(404, 'Portfolio not found');
-  }
+  if (!portfolio) ctx.throw(404, 'Portfolio not found');
 
   const items = await PortfolioItem.findAll({
-    where: { 
-      portfolioId,
-      isDeleted: false 
-    }
+    where: { portfolioId, isDeleted: false }
   });
 
   const stats = {
@@ -159,7 +296,6 @@ router.get('/:id/stats', async (ctx) => {
     sellCount: items.filter(item => item.type === 'sell').length
   };
 
-  // 统计各资产类型数量
   items.forEach(item => {
     if (stats.assetTypes[item.assetType]) {
       stats.assetTypes[item.assetType]++;
@@ -168,10 +304,7 @@ router.get('/:id/stats', async (ctx) => {
     }
   });
 
-  ctx.body = {
-    portfolio,
-    stats
-  };
+  ctx.body = { portfolio, stats };
 });
 
 module.exports = router;
