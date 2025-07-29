@@ -1,6 +1,6 @@
 const Router = require('koa-router');
 const PortfolioItem = require('../models/PortfolioItem');
-const Portfolio = require('../models/Porfitoilo');
+const Portfolio = require('../models/Portfolio');
 const AssetInfo = require('../models/AssetInfo');
 const { Op } = require('sequelize');
 const { requireAuth, adminOnly } = require('../middleware/auth');

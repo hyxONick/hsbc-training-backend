@@ -10,10 +10,10 @@ const { koaSwagger } = require('koa2-swagger-ui');
 
 const sequelize = require('./config/database'); // ✅ Sequelize 实例
 const User = require('./models/User');
-const Portfolio = require('./models/Porfitoilo');
+const Portfolio = require('./models/Portfolio');
 const PortfolioItem = require('./models/PortfolioItem');
 const AssetInfo = require('./models/AssetInfo');
-const ProfitLog = require('./models/PorfitLog');
+const ProfitLog = require('./models/ProfitLog');
 // const Cloth = require('./models/Cloth');
 
 // 🔗 建立关联
@@ -27,6 +27,7 @@ const assetInfoRoutes = require('./routes/assetInfo');
 const portfolioRoutes = require('./routes/portfolio');
 const portfolioItemRoutes = require('./routes/portfolioItem');
 const profitLogRoutes = require('./routes/profitLog');
+const statistics = require('./routes/statistics')
 
 const app = new Koa();
 app.use(cors());
@@ -89,6 +90,7 @@ app.use(assetInfoRoutes.routes()).use(assetInfoRoutes.allowedMethods());
 app.use(portfolioRoutes.routes()).use(portfolioRoutes.allowedMethods());
 app.use(portfolioItemRoutes.routes()).use(portfolioItemRoutes.allowedMethods());
 app.use(profitLogRoutes.routes()).use(profitLogRoutes.allowedMethods());
+app.use(statistics.routes()).use(statistics.allowedMethods());
 
 // ✅ 启动服务
 const PORT = process.env.PORT || 3000;

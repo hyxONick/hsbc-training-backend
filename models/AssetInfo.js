@@ -9,7 +9,7 @@ const AssetInfo = sequelize.define('AssetInfo', {
   price: { type: DataTypes.DECIMAL(18, 2), allowNull: false },
   currency: { type: DataTypes.STRING(10) },
   updatedAt: { type: DataTypes.DATE },
-  historyPriceArt: { // ✅ 存历史价格数组
+  historyPriceArr: { // ✅ 存历史价格数组
   type: DataTypes.JSON,
   validate: {
     isArrayOfNumbers(value) {

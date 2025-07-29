@@ -9,7 +9,7 @@ const bcrypt = require('bcrypt');
 const secret = process.env.JWT_SECRET;
 
 router.post('/register', async (ctx) => {
-  const { username, password, role = 'user' } = ctx.request.body;
+  const { username, password, role = 'user', email = 'test@gmail.com' } = ctx.request.body;
 
   const existing = await User.findOne({ where: { username } });
   if (existing) {
