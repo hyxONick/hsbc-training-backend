@@ -11,9 +11,17 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
   role: {
     type: DataTypes.ENUM('admin', 'user'),
     defaultValue: 'user',
+  },
+  avatar: {
+    type: DataTypes.TEXT('long'),   // ✅ 存 Base64 图片数据
+    allowNull: true
   },
   token: {
     type: DataTypes.TEXT,

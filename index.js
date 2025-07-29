@@ -5,9 +5,21 @@ const Router = require('koa-router');
 const bodyParser = require('koa-bodyparser');
 const logger = require('koa-logger');
 
+const swagger = require('./swagger'); // 👈 引入上一步的 swagger.js
+const { koaSwagger } = require('koa2-swagger-ui');
+
 const sequelize = require('./config/database'); // ✅ Sequelize 实例
 const User = require('./models/User');
-const Cloth = require('./models/Cloth');
+const Portfolio = require('./models/Porfitoilo');
+const PortfolioItem = require('./models/PortfolioItem');
+const AssetInfo = require('./models/AssetInfo');
+const ProfitLog = require('./models/PorfitLog');
+// const Cloth = require('./models/Cloth');
+
+// 🔗 建立关联
+Portfolio.hasMany(PortfolioItem, { foreignKey: 'portfolioId' });
+PortfolioItem.belongsTo(Portfolio, { foreignKey: 'portfolioId' });
+
 
 const clothRoutes = require('./routes/cloth');
 const userRoutes = require('./routes/user');
@@ -57,6 +69,14 @@ app.use(async (ctx, next) => {
 // ✅ 通用中间件
 app.use(logger());
 app.use(bodyParser());
+
+// ✅ Swagger UI 路由
+app.use(
+  koaSwagger({
+    routePrefix: '/docs', // 👉 Swagger UI 访问地址 http://localhost:3000/docs
+    swaggerOptions: { spec: swagger },
+  })
+);
 
 // ✅ 路由挂载
 app.use(clothRoutes.routes()).use(clothRoutes.allowedMethods());

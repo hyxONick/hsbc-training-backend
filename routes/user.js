@@ -1,6 +1,7 @@
 const Router = require('koa-router');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { requireAuth, adminOnly } = require('../middleware/auth');
 
 const router = new Router({ prefix: '/api/users' });
 const bcrypt = require('bcrypt');
@@ -22,7 +23,8 @@ router.post('/register', async (ctx) => {
   await User.create({
     username,
     password: hashed,
-    role
+    role,
+    email
   });
 
   ctx.status = 201;
@@ -53,6 +55,56 @@ router.post('/login', async (ctx) => {
 
   ctx.body = {
     token,
+    user: {
+      id: user.id,
+      username: user.username,
+      role: user.role
+    }
+  };
+});
+
+/**
+ * 获取用户信息 (需要登录)
+ */
+router.get('/:id', requireAuth, async (ctx) => {
+  const user = await User.findByPk(ctx.params.id, {
+    attributes: ['id', 'username', 'role', 'createdAt', 'updatedAt'] // 不返回密码和 token
+  });
+
+  if (!user) {
+    ctx.status = 404;
+    ctx.body = { message: 'User not found' };
+    return;
+  }
+
+  ctx.body = user;
+});
+
+/**
+ * 修改用户角色 (需要管理员权限)
+ */
+router.post('/:id/role', requireAuth, adminOnly, async (ctx) => {
+  const { role } = ctx.request.body;
+
+  // 仅允许 'admin' 或 'user'
+  if (!['admin', 'user'].includes(role)) {
+    ctx.status = 400;
+    ctx.body = { message: 'Invalid role' };
+    return;
+  }
+
+  const user = await User.findByPk(ctx.params.id);
+  if (!user) {
+    ctx.status = 404;
+    ctx.body = { message: 'User not found' };
+    return;
+  }
+
+  user.role = role;
+  await user.save();
+
+  ctx.body = {
+    message: 'Role updated successfully',
     user: {
       id: user.id,
       username: user.username,
