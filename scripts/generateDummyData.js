@@ -106,35 +106,42 @@ async function createData() {
         isDeleted: false
       });
 
-      console.log(`📊 Creating ProfitLogs for "${portfolio.name}"...`);
-      for (let d = 0; d < DAYS; d++) {
-        await ProfitLog.create({
-          itemId: portfolio.id,
-          date: dateArr[d],
-          value: (10000 + Math.random() * 5000).toFixed(2),
-          profit: (Math.random() * 100).toFixed(2),
-          isDeleted: false
-        });
-      }
-
       console.log(`📌 Creating PortfolioItems for "${portfolio.name}"...`);
       const assetSubset = createdAssets.sort(() => 0.5 - Math.random()).slice(0, 6);
+
       for (const asset of assetSubset) {
         const isBuy = Math.random() > 0.3;
-        const purchaseDate = getRandomDateBetween(startDate, endDate);
-        const sellDate = !isBuy ? getRandomDateBetween(purchaseDate, endDate) : null;
+        const quantity = (Math.random() * 100 + 10).toFixed(4);
 
-        await PortfolioItem.create({
+        // 创建 PortfolioItem
+        const portfolioItem = await PortfolioItem.create({
           portfolioId: portfolio.id,
           assetCode: asset.assetCode,
           assetType: asset.assetType,
           amount: (Math.random() * 5000 + 1000).toFixed(2),
-          quantity: (Math.random() * 100 + 10).toFixed(4),
+          quantity,
           type: isBuy ? 'buy' : 'sell',
-          purchaseDate,
-          sellDate,
+          purchaseDate: getRandomDateBetween(startDate, endDate),
           isDeleted: false
         });
+
+        // ✅ 为这个资产每天生成 ProfitLog
+        const prices = asset.historyPriceArr;
+        for (let d = 0; d < DAYS; d++) {
+          const todayPrice = prices[d];
+          const yesterdayPrice = d > 0 ? prices[d - 1] : todayPrice;
+
+          const value = todayPrice * quantity;
+          const profit = (todayPrice - yesterdayPrice) * quantity;
+
+          await ProfitLog.create({
+            itemId: portfolioItem.id,  // ✅ 绑定 PortfolioItem
+            date: dateArr[d],
+            value: value.toFixed(2),
+            profit: profit.toFixed(2),
+            isDeleted: false
+          });
+        }
       }
     }
 
