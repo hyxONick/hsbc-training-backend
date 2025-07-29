@@ -6,7 +6,82 @@ const { requireAuth, adminOnly } = require('../middleware/auth');
 
 const router = new Router({ prefix: '/api/portfolios' });
 
-// GET: 获取所有未删除的投资组合
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Portfolio:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 投资组合ID
+ *         name:
+ *           type: string
+ *           description: 投资组合名称
+ *         userId:
+ *           type: integer
+ *           description: 用户ID
+ *         description:
+ *           type: string
+ *           description: 描述
+ *         isDeleted:
+ *           type: boolean
+ *           description: 是否已删除
+ *           default: false
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: 创建时间
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: 更新时间
+ *         PortfolioItems:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/PortfolioItem'
+ *     PortfolioItem:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 投资项目ID
+ *         portfolioId:
+ *           type: integer
+ *           description: 投资组合ID
+ *         symbol:
+ *           type: string
+ *           description: 股票代码
+ *         quantity:
+ *           type: number
+ *           description: 数量
+ *         averagePrice:
+ *           type: number
+ *           format: float
+ *           description: 平均价格
+ *         isDeleted:
+ *           type: boolean
+ *           description: 是否已删除
+ *           default: false
+ */
+
+/**
+ * @swagger
+ * /api/portfolios:
+ *   get:
+ *     summary: 获取所有未删除的投资组合
+ *     tags: [Portfolios]
+ *     responses:
+ *       200:
+ *         description: 获取投资组合列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Portfolio'
+ */
 router.get('/', async (ctx) => {
   const portfolios = await Portfolio.findAll({
     where: { isDeleted: false },
@@ -19,7 +94,29 @@ router.get('/', async (ctx) => {
   ctx.body = portfolios;
 });
 
-// GET: 根据 ID 获取投资组合
+/**
+ * @swagger
+ * /api/portfolios/{id}:
+ *   get:
+ *     summary: 根据ID获取投资组合
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 投资组合ID
+ *     responses:
+ *       200:
+ *         description: 获取投资组合成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Portfolio'
+ *       404:
+ *         description: 投资组合不存在
+ */
 router.get('/:id', async (ctx) => {
   const portfolio = await Portfolio.findByPk(ctx.params.id, {
     include: [{
@@ -34,7 +131,29 @@ router.get('/:id', async (ctx) => {
   ctx.body = portfolio;
 });
 
-// GET: 根据用户ID获取用户的所有投资组合
+/**
+ * @swagger
+ * /api/portfolios/user/{userId}:
+ *   get:
+ *     summary: 根据用户ID获取用户的所有投资组合
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 获取用户投资组合列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Portfolio'
+ */
 router.get('/user/:userId', async (ctx) => {
   const portfolios = await Portfolio.findAll({
     where: { 

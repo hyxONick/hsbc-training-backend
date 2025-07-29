@@ -5,7 +5,88 @@ const { requireAuth, adminOnly } = require('../middleware/auth');
 
 const router = new Router({ prefix: '/api/cloths' });
 
-// GET: 获取所有未删除的 cloths
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Cloth:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 服装ID
+ *         type:
+ *           type: string
+ *           description: 服装类型
+ *         size:
+ *           type: string
+ *           description: 尺寸
+ *           default: M
+ *         color:
+ *           type: string
+ *           description: 颜色
+ *           default: white
+ *         material:
+ *           type: string
+ *           description: 材质
+ *         price:
+ *           type: number
+ *           format: float
+ *           description: 价格
+ *         isDeleted:
+ *           type: boolean
+ *           description: 是否已删除
+ *           default: false
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: 创建时间
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: 更新时间
+ *     ClothCreate:
+ *       type: object
+ *       required:
+ *         - type
+ *         - price
+ *       properties:
+ *         type:
+ *           type: string
+ *           description: 服装类型
+ *         size:
+ *           type: string
+ *           description: 尺寸
+ *           default: M
+ *         color:
+ *           type: string
+ *           description: 颜色
+ *           default: white
+ *         material:
+ *           type: string
+ *           description: 材质
+ *         price:
+ *           type: number
+ *           format: float
+ *           description: 价格
+ */
+
+/**
+ * @swagger
+ * /api/cloths:
+ *   get:
+ *     summary: 获取所有未删除的服装
+ *     tags: [Cloths]
+ *     responses:
+ *       200:
+ *         description: 获取服装列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Cloth'
+ */
 router.get('/', async (ctx) => {
   const cloths = await Cloth.findAll({
     where: { isDeleted: false }
@@ -13,7 +94,29 @@ router.get('/', async (ctx) => {
   ctx.body = cloths;
 });
 
-// GET: 根据 ID 获取 cloth（包含已删除）
+/**
+ * @swagger
+ * /api/cloths/{id}:
+ *   get:
+ *     summary: 根据ID获取服装
+ *     tags: [Cloths]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 服装ID
+ *     responses:
+ *       200:
+ *         description: 获取服装成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Cloth'
+ *       404:
+ *         description: 服装不存在
+ */
 router.get('/:id', async (ctx) => {
   const cloth = await Cloth.findByPk(ctx.params.id);
   if (!cloth) {
@@ -22,7 +125,32 @@ router.get('/:id', async (ctx) => {
   ctx.body = cloth;
 });
 
-// POST: 创建 cloth
+/**
+ * @swagger
+ * /api/cloths/create:
+ *   post:
+ *     summary: 创建服装
+ *     tags: [Cloths]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ClothCreate'
+ *     responses:
+ *       200:
+ *         description: 创建服装成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Cloth'
+ *       401:
+ *         description: 未认证
+ *       403:
+ *         description: 需要管理员权限
+ */
 router.post('/create', requireAuth, adminOnly, async (ctx) => {
   const newCloth = await Cloth.create(ctx.request.body);
   ctx.body = newCloth;

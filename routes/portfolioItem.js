@@ -7,7 +7,110 @@ const { requireAuth, adminOnly } = require('../middleware/auth');
 
 const router = new Router({ prefix: '/api/portfolio-items' });
 
-// GET: 获取所有未删除的投资组合项目
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     PortfolioItemDetail:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 投资项目ID
+ *         portfolioId:
+ *           type: integer
+ *           description: 投资组合ID
+ *         assetCode:
+ *           type: string
+ *           maxLength: 20
+ *           description: 资产代码
+ *         assetType:
+ *           type: string
+ *           enum: [stock, bond, cash]
+ *           description: 资产类型
+ *         amount:
+ *           type: number
+ *           format: decimal
+ *           description: 金额
+ *         quantity:
+ *           type: number
+ *           format: decimal
+ *           description: 数量
+ *         type:
+ *           type: string
+ *           enum: [buy, sell]
+ *           description: 交易类型
+ *         sellDate:
+ *           type: string
+ *           format: date-time
+ *           description: 卖出日期
+ *         purchaseDate:
+ *           type: string
+ *           format: date-time
+ *           description: 购买日期
+ *         isDeleted:
+ *           type: boolean
+ *           default: false
+ *           description: 是否已删除
+ *     PortfolioItemCreate:
+ *       type: object
+ *       required:
+ *         - portfolioId
+ *         - assetCode
+ *         - assetType
+ *         - amount
+ *         - quantity
+ *         - type
+ *       properties:
+ *         portfolioId:
+ *           type: integer
+ *           description: 投资组合ID
+ *         assetCode:
+ *           type: string
+ *           maxLength: 20
+ *           description: 资产代码
+ *         assetType:
+ *           type: string
+ *           enum: [stock, bond, cash]
+ *           description: 资产类型
+ *         amount:
+ *           type: number
+ *           format: decimal
+ *           description: 金额
+ *         quantity:
+ *           type: number
+ *           format: decimal
+ *           description: 数量
+ *         type:
+ *           type: string
+ *           enum: [buy, sell]
+ *           description: 交易类型
+ *         sellDate:
+ *           type: string
+ *           format: date-time
+ *           description: 卖出日期
+ *         purchaseDate:
+ *           type: string
+ *           format: date-time
+ *           description: 购买日期
+ */
+
+/**
+ * @swagger
+ * /api/portfolio-items:
+ *   get:
+ *     summary: 获取所有未删除的投资组合项目
+ *     tags: [Portfolio Items]
+ *     responses:
+ *       200:
+ *         description: 获取投资组合项目列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/PortfolioItemDetail'
+ */
 router.get('/', async (ctx) => {
   const items = await PortfolioItem.findAll({
     where: { isDeleted: false },
@@ -22,7 +125,29 @@ router.get('/', async (ctx) => {
   ctx.body = items;
 });
 
-// GET: 根据 ID 获取投资组合项目
+/**
+ * @swagger
+ * /api/portfolio-items/{id}:
+ *   get:
+ *     summary: 根据ID获取投资组合项目
+ *     tags: [Portfolio Items]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 投资项目ID
+ *     responses:
+ *       200:
+ *         description: 获取投资项目成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PortfolioItemDetail'
+ *       404:
+ *         description: 投资项目不存在
+ */
 router.get('/:id', async (ctx) => {
   const item = await PortfolioItem.findByPk(ctx.params.id, {
     include: [
@@ -39,7 +164,29 @@ router.get('/:id', async (ctx) => {
   ctx.body = item;
 });
 
-// GET: 根据投资组合ID获取所有项目
+/**
+ * @swagger
+ * /api/portfolio-items/portfolio/{portfolioId}:
+ *   get:
+ *     summary: 根据投资组合ID获取所有项目
+ *     tags: [Portfolio Items]
+ *     parameters:
+ *       - in: path
+ *         name: portfolioId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 投资组合ID
+ *     responses:
+ *       200:
+ *         description: 获取投资项目列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/PortfolioItemDetail'
+ */
 router.get('/portfolio/:portfolioId', async (ctx) => {
   const items = await PortfolioItem.findAll({
     where: { 
