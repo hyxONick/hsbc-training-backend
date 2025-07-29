@@ -6,8 +6,8 @@ const bodyParser = require('koa-bodyparser');
 const logger = require('koa-logger');
 
 const sequelize = require('./config/database'); // ✅ Sequelize 实例
-const User = require('./models/User');
-const Cloth = require('./models/Cloth');
+// Import models and associations
+require('./models/associations'); // 导入模型关联关系
 
 const clothRoutes = require('./routes/cloth');
 const userRoutes = require('./routes/user');
