@@ -20,6 +20,8 @@ const ProfitLog = require('./models/ProfitLog');
 Portfolio.hasMany(PortfolioItem, { foreignKey: 'portfolioId' });
 PortfolioItem.belongsTo(Portfolio, { foreignKey: 'portfolioId' });
 
+AssetInfo.hasMany(PortfolioItem, { foreignKey: 'assetCode', sourceKey: 'assetCode' });
+PortfolioItem.belongsTo(AssetInfo, { foreignKey: 'assetCode', targetKey: 'assetCode' });
 
 const clothRoutes = require('./routes/cloth');
 const userRoutes = require('./routes/user');

@@ -5,7 +5,7 @@ const AssetInfo = sequelize.define('AssetInfo', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   assetCode: { type: DataTypes.STRING(20), allowNull: false },
   name: { type: DataTypes.STRING(100) },
-  assetType: { type: DataTypes.ENUM('stock', 'bond'), allowNull: false },
+  assetType: { type: DataTypes.ENUM('stock', 'bond', 'cash'), allowNull: false },
   price: { type: DataTypes.DECIMAL(18, 2), allowNull: false },
   currency: { type: DataTypes.STRING(10) },
   updatedAt: { type: DataTypes.DATE },

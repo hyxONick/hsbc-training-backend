@@ -1,4 +1,5 @@
 const Router = require('koa-router');
+const AssetInfo = require('../models/AssetInfo');
 const Portfolio = require('../models/Portfolio');
 const PortfolioItem = require('../models/PortfolioItem');
 const { Op } = require('sequelize');
@@ -305,6 +306,395 @@ router.get('/:id/stats', async (ctx) => {
   });
 
   ctx.body = { portfolio, stats };
+});
+
+/**
+ * @swagger
+ * /api/portfolios/{id}/summary:
+ *   get:
+ *     summary: 获取投资组合的收益汇总（已实现、未实现、总收益、持仓详情）
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 投资组合ID
+ *     responses:
+ *       200:
+ *         description: 返回投资组合收益汇总
+ */
+router.get('/:id/summary', async (ctx) => {
+  const portfolioId = ctx.params.id;
+
+  // 1️⃣ 查 Portfolio
+  const portfolio = await Portfolio.findByPk(portfolioId);
+  if (!portfolio) ctx.throw(404, 'Portfolio not found');
+
+  // 2️⃣ 查 PortfolioItem
+  const items = await PortfolioItem.findAll({
+    where: { portfolioId, isDeleted: false }
+  });
+
+  // 3️⃣ 查 AssetInfo
+  const assetCodes = [...new Set(items.map(item => item.assetCode))];
+  const assetInfos = await AssetInfo.findAll({
+    where: { assetCode: assetCodes, isDeleted: false }
+  });
+
+  const assetMap = Object.fromEntries(assetInfos.map(a => [a.assetCode, a]));
+
+  // 4️⃣ 计算收益和持仓
+  const holdings = {};
+  let realizedGain = 0;
+  let unrealizedGain = 0;
+  let totalValue = 0;
+
+  items.forEach(item => {
+    const asset = assetMap[item.assetCode];
+    if (!asset) return;
+
+    const currentPrice = parseFloat(asset.price);
+    const tradeQty = parseFloat(item.quantity);
+    const tradeAmount = parseFloat(item.amount);
+    const tradePrice = tradeAmount / tradeQty;
+
+    // 初始化
+    if (!holdings[item.assetCode]) {
+      holdings[item.assetCode] = {
+        assetCode: item.assetCode,
+        name: asset.name,
+        assetType: item.assetType,
+        quantity: 0,
+        cost: 0,
+        avgCost: 0,
+        currentPrice,
+        marketValue: 0,
+        unrealizedGain: 0,
+        status: 'closed'  // 默认 closed，后面会修正
+      };
+    }
+
+    const h = holdings[item.assetCode];
+
+    if (item.type === 'buy') {
+      h.quantity += tradeQty;
+      h.cost += tradeAmount;
+    } else if (item.type === 'sell') {
+      const avgCost = h.quantity > 0 ? h.cost / h.quantity : tradePrice;
+      realizedGain += (tradePrice - avgCost) * tradeQty;
+
+      h.quantity -= tradeQty;
+      h.cost -= avgCost * tradeQty;
+    }
+  });
+
+  // 5️⃣ 计算持仓价值 & 状态
+  for (const code in holdings) {
+    const h = holdings[code];
+
+    if (h.quantity > 0) {
+      // ✅ 多头
+      h.status = 'long';
+      h.avgCost = h.cost / h.quantity;
+      h.marketValue = h.quantity * h.currentPrice;
+      h.unrealizedGain = (h.currentPrice - h.avgCost) * h.quantity;
+
+      totalValue += h.marketValue;
+      unrealizedGain += h.unrealizedGain;
+
+    } else if (h.quantity < 0) {
+      // ✅ 空头
+      h.status = 'short';
+      h.avgCost = h.cost / h.quantity;
+      h.marketValue = h.quantity * h.currentPrice; // 负值
+      h.unrealizedGain = (h.avgCost - h.currentPrice) * Math.abs(h.quantity);
+
+      totalValue += h.marketValue;
+      unrealizedGain += h.unrealizedGain;
+
+    } else {
+      // ✅ 已清仓
+      h.status = 'closed';
+      h.avgCost = 0;
+      h.marketValue = 0;
+      h.unrealizedGain = 0;
+    }
+  }
+
+  const totalGain = realizedGain + unrealizedGain;
+
+  // ✅ 成本只算 long 和 short 的（不算 closed）
+  const totalCost = Object.values(holdings)
+    .filter(h => h.quantity !== 0)
+    .reduce((sum, h) => sum + Math.abs(h.cost), 0);
+
+  const totalGainPercent = totalCost > 0
+    ? ((totalGain / totalCost) * 100).toFixed(2)
+    : "0.00";
+
+  // ✅ assetCount 只统计 quantity ≠ 0 的资产
+  const assetCount = Object.values(holdings).filter(h => h.quantity > 0).length;
+
+  ctx.body = {
+    portfolioId,
+    totalValue,
+    realizedGain,
+    unrealizedGain,
+    totalGain,
+    totalGainPercent,
+    assetCount,
+    holdings: Object.values(holdings)
+  };
+});
+
+/**
+ * ===========================
+ * 1️⃣ 获取指定用户所有组合的收益时间序列
+ * ===========================
+ */
+/**
+ * @swagger
+ * /api/portfolios/{userId}/returns:
+ *   get:
+ *     summary: 获取指定用户所有投资组合的收益时间序列
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户 ID
+ *     responses:
+ *       200:
+ *         description: 返回每个组合名称对应的时间序列净值数组
+ */
+router.get('/:userId/returns', async (ctx) => {
+  const { userId } = ctx.params;
+
+  // ✅ Portfolio → PortfolioItem → AssetInfo (一次性 JOIN)
+  const portfolios = await Portfolio.findAll({
+    where: { isDeleted: false, userId },
+    include: [
+      {
+        model: PortfolioItem,
+        where: { isDeleted: false, type: 'buy' },
+        required: false,
+        include: [
+          {
+            model: AssetInfo,
+            where: { isDeleted: false },
+            required: false
+          }
+        ]
+      }
+    ]
+  });
+
+  if (!portfolios.length) {
+    ctx.body = {};
+    return;
+  }
+
+  // ✅ 找出最长 dateArr 统一时间点
+  let maxDateArr = [];
+  portfolios.forEach(p => {
+    p.PortfolioItems.forEach(item => {
+      if (item.AssetInfo && item.AssetInfo.dateArr?.length > maxDateArr.length) {
+        maxDateArr = item.AssetInfo.dateArr;
+      }
+    });
+  });
+
+  // ✅ 计算每个组合每天的净值
+  const result = {};
+  portfolios.forEach(p => {
+    const values = maxDateArr.map((time, idx) => {
+      let totalValue = 0;
+      p.PortfolioItems.forEach(item => {
+        if (!item.AssetInfo) return;
+        const price = item.AssetInfo.historyPriceArr?.[idx] || 0;
+        totalValue += price * parseFloat(item.quantity || 0);
+      });
+      return { time, value: parseFloat(totalValue.toFixed(2)) };
+    });
+    result[p.name] = values;
+  });
+
+  ctx.body = result;
+});
+
+
+/**
+ * ===========================
+ * 2️⃣ 获取指定用户的资产收益率
+ * ===========================
+ */
+/**
+ * @swagger
+ * /api/portfolios/{userId}/asset-returns:
+ *   get:
+ *     summary: 获取指定用户涉及的资产收益率
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户 ID
+ *     responses:
+ *       200:
+ *         description: 返回用户持仓涉及的资产收益率数组
+ */
+router.get('/:userId/asset-returns', async (ctx) => {
+  const { userId } = ctx.params;
+
+  // ✅ Portfolio → PortfolioItem → AssetInfo
+  const portfolios = await Portfolio.findAll({
+    where: { isDeleted: false, userId },
+    include: [
+      {
+        model: PortfolioItem,
+        where: { isDeleted: false },
+        required: false,
+        include: [
+          {
+            model: AssetInfo,
+            where: { isDeleted: false },
+            required: false
+          }
+        ]
+      }
+    ]
+  });
+
+  if (!portfolios.length) {
+    ctx.body = [];
+    return;
+  }
+
+  // ✅ 把所有 AssetInfo 收集起来计算收益率
+  const assetsSeen = new Map();
+
+  portfolios.forEach(p => {
+    p.PortfolioItems.forEach(item => {
+      const asset = item.AssetInfo;
+      if (asset && !assetsSeen.has(asset.assetCode)) {
+        assetsSeen.set(asset.assetCode, asset);
+      }
+    });
+  });
+
+  const result = [];
+  assetsSeen.forEach(asset => {
+    const prices = asset.historyPriceArr || [];
+    if (prices.length < 2) return;
+    const first = prices[0];
+    const last = prices[prices.length - 1];
+    const ret = first === 0 ? 0 : ((last - first) / first) * 100;
+
+    result.push({
+      name: asset.assetCode,
+      return: parseFloat(ret.toFixed(2)),
+      type: asset.assetType
+    });
+  });
+
+  ctx.body = result;
+});
+
+
+/**
+ * ===========================
+ * 3️⃣ 获取指定用户的所有交易记录
+ * ===========================
+ */
+/**
+ * @swagger
+ * /api/portfolios/{userId}/trade-records:
+ *   get:
+ *     summary: 获取指定用户的所有买卖交易记录
+ *     tags: [Portfolios]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户 ID
+ *     responses:
+ *       200:
+ *         description: 返回该用户的所有交易记录（买卖动作、价格、日期等）
+ */
+router.get('/:userId/trade-records', async (ctx) => {
+  const { userId } = ctx.params;
+
+  // ✅ Portfolio → PortfolioItem → AssetInfo
+  const portfolios = await Portfolio.findAll({
+    where: { isDeleted: false, userId },
+    include: [
+      {
+        model: PortfolioItem,
+        where: { isDeleted: false },
+        required: false,
+        include: [
+          {
+            model: AssetInfo,
+            where: { isDeleted: false },
+            required: false
+          }
+        ]
+      }
+    ]
+  });
+
+  if (!portfolios.length) {
+    ctx.body = [];
+    return;
+  }
+
+  const records = [];
+
+  portfolios.forEach(p => {
+    p.PortfolioItems.forEach(item => {
+      const asset = item.AssetInfo;
+      if (!asset) return; // 资产不存在直接跳过
+
+      // ✅ 计算买入价（买入金额 ÷ 数量）
+      const buyPrice = parseFloat(item.amount) / parseFloat(item.quantity);
+      let profit = 0;
+
+      if (item.type === 'buy') {
+        // ✅ 买入后未卖出 → 计算浮动盈亏（当前价 - 买入价）* 数量
+        const currentPrice = parseFloat(asset.price);
+        profit = (currentPrice - buyPrice) * parseFloat(item.quantity);
+
+      } else if (item.type === 'sell') {
+        // ✅ 卖出 → 计算实现盈亏（卖出价 - 买入价）* 数量
+        // 这里卖出价同样是 amount ÷ quantity（即卖出单价）
+        const sellPrice = buyPrice; // 注意：如果你数据库里 `amount` 是卖出金额，就能直接复用
+        const priceOnBuyDay = parseFloat(asset.historyPriceArr?.[0]) || buyPrice; 
+        const priceOnSellDay = parseFloat(asset.price);
+        
+        // ✅ 用交易日的价格差计算利润（假设卖出时资产现价就是卖出价）
+        profit = (priceOnSellDay - priceOnBuyDay) * parseFloat(item.quantity);
+      }
+
+      records.push({
+        portfolio: p.name,
+        assetType: item.assetType,
+        action: item.type,
+        price: buyPrice.toFixed(2),
+        profit: parseFloat(profit.toFixed(2)),
+        date: item.purchaseDate ? item.purchaseDate.toISOString().slice(0, 10) : null
+      });
+    });
+  });
+
+  ctx.body = records;
 });
 
 module.exports = router;
