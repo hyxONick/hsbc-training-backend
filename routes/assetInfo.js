@@ -329,4 +329,126 @@ router.post('/batch-update-prices', requireAuth, adminOnly, async (ctx) => {
   ctx.body = { message: 'Batch update completed', results };
 });
 
+/**
+ * @swagger
+ * /api/assets/{assetCode}/history:
+ *   get:
+ *     summary: 获取指定资产的历史价格
+ *     description: 根据资产代码 (assetCode) 获取该资产的历史日期数组和历史价格数组。
+ *     tags:
+ *       - Asset
+ *     parameters:
+ *       - in: path
+ *         name: assetCode
+ *         required: true
+ *         description: 资产代码 (如 AAPL, TSLA)
+ *         schema:
+ *           type: string
+ *           example: AAPL
+ *     responses:
+ *       200:
+ *         description: 成功返回资产历史数据
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 assetCode:
+ *                   type: string
+ *                   example: AAPL
+ *                 name:
+ *                   type: string
+ *                   example: Apple Inc.
+ *                 dateArr:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["2023-07-01", "2023-07-02", "2023-07-03"]
+ *                 historyPriceArr:
+ *                   type: array
+ *                   items:
+ *                     type: number
+ *                   example: [182.12, 183.45, 185.20]
+ *       404:
+ *         description: 未找到该资产
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Asset not found
+ *       500:
+ *         description: 服务器错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal Server Error
+ */
+router.get("/:assetCode/history", async (ctx) => {
+  try {
+    const { assetCode } = ctx.params;
+
+    // ✅ 查询数据库
+    const asset = await AssetInfo.findOne({
+      where: { assetCode, isDeleted: false }
+    });
+
+    if (!asset) {
+      ctx.status = 404;
+      ctx.body = { message: "Asset not found" };
+      return;
+    }
+
+    // ✅ 基础数据
+    const dateArr = asset.dateArr || [];
+    const priceArr = asset.historyPriceArr || [];
+
+    // ✅ 如果数据不足 2 天，给默认值
+    const currentPrice = priceArr.length > 0 ? priceArr[priceArr.length - 1] : null;
+    const prevPrice = priceArr.length > 1 ? priceArr[priceArr.length - 2] : null;
+
+    // ✅ 计算指标
+    const changeAmount = (currentPrice && prevPrice) ? (currentPrice - prevPrice) : 0;
+    const changePercent = (prevPrice && prevPrice !== 0) ? ((changeAmount / prevPrice) * 100).toFixed(2) : "0.00";
+
+    const high52w = priceArr.length > 0 ? Math.max(...priceArr) : null;
+    const low52w = priceArr.length > 0 ? Math.min(...priceArr) : null;
+    const avgPrice = priceArr.length > 0 ? (priceArr.reduce((a, b) => a + b, 0) / priceArr.length).toFixed(2) : null;
+
+    // ✅ 返回给前端
+    ctx.body = {
+      assetCode: asset.assetCode,
+      name: asset.name,
+      assetType: asset.assetType,
+      currency: asset.currency,
+      updatedAt: asset.updatedAt,
+
+      // ✅ 历史数据
+      dateArr,
+      historyPriceArr: priceArr,
+
+      // ✅ 额外指标
+      currentPrice,
+      prevPrice,
+      changeAmount: changeAmount.toFixed(2),
+      changePercent,
+      high52w,
+      low52w,
+      avgPrice
+    };
+
+  } catch (err) {
+    console.error("❌ 获取资产历史数据失败:", err);
+    ctx.status = 500;
+    ctx.body = { message: "Internal Server Error" };
+  }
+});
+
+
 module.exports = router;
